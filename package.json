@@ -1,0 +1,34 @@
+{
+  "name": "engined-member",
+  "version": "0.0.1",
+  "description": "Member system service for engined",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/EnginedJS/engined-member.git"
+  },
+  "keywords": [
+    "service",
+    "engined",
+    "member"
+  ],
+  "engines": {
+    "node": ">=7.4"
+  },
+  "author": "Fred Chien <cfsghost@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/EnginedJS/engined-member/issues"
+  },
+  "homepage": "https://github.com/EnginedJS/engined-member#readme",
+  "dependencies": {
+    "engined": "0.0.2",
+    "engined-http": "0.0.3",
+    "jsonwebtoken": "^7.4.1",
+    "koa-router": "^7.2.1",
+    "restpack": "0.0.6"
+  }
+}
