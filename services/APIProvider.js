@@ -25,6 +25,8 @@ const createRouter = (service) => {
 	 *
 	 * @apiSuccess {String} token Access token
 	 * @apiError 400 {String} BadRequest
+	 * @apiError 401 {String} NotExist Account doesn't exist
+	 * @apiError 403 {String} Disabled Account is disabled
 	 * @apiError 422 {Object} ValidationFailed Parameters are invalid
 	 * @apiErrorExample {json} Error-Response:
 	 *	{
@@ -82,8 +84,9 @@ const createRouter = (service) => {
 			case 'Disabled':
 				ctx.throw(403);
 			case 'NotExist':
-			case 'VerificationFailed':
 				ctx.throw(401);
+			case 'VerificationFailed':
+				ctx.throw(422);
 			}
 
 			console.error(e);
@@ -115,9 +118,6 @@ const createRouter = (service) => {
 		if (!ctx.request.body)
 			ctx.throw(400);
 
-		// Getting member system agent
-		let agent = ctx.enginedContext.get('Member')[service.memberAgent];
-
 		// Create a package for restful API
 		let pkg = new RestPack();
 
@@ -134,6 +134,9 @@ const createRouter = (service) => {
 		}
 
 		try {
+
+			// Getting member system agent
+			let agent = ctx.enginedContext.get('Member')[service.memberAgent];
 
 			// Verify member account
 			let memberId = await memberAPI.createMember(email, payload.password);
