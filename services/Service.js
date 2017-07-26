@@ -11,8 +11,8 @@ module.exports = (opts = {}) => class extends Service {
 
 		this.agent = null;
 		this.agentName = opts.agentName || 'default';
-		this.httpAgentName = opts.httpAgentName || 'default';
-		this.dbAgentName = opts.dbAgentName || 'default';
+		this.httpAgent = opts.httpAgent || 'default';
+		this.dbAgent = opts.dbAgent || 'default';
 		this.expiresIn = opts.expiresIn || 30 * 24 * 60 * 60 * 1000;
 		this.secret = opts.secret || '';
 		this.perms = {};
@@ -32,7 +32,7 @@ module.exports = (opts = {}) => class extends Service {
 			this.getContext().set('Member', context);
 		}
 
-		let httpAgent = this.getContext().get('HTTP')[this.httpAgentName];
+		let httpAgent = this.getContext().get('HTTP')[this.httpAgent];
 
 		// Setup Session middleware
 		httpAgent.use(async (ctx, next) => {
