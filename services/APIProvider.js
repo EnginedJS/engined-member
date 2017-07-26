@@ -1,8 +1,14 @@
 const Router = require('koa-router');
 const { RouterService } = require('engined-http');
 const RestPack = require('restpack');
+const MemberAPI = require('../lib/Member');
+const PermissionAPI = require('../lib/Permission');
 
 const createRouter = (service) => {
+
+	// Getting member system agent
+	const memberAPI = MemberAPI(service);
+	const permissionAPI = PermissionAPI(service);
 
 	// Create a new router
 	let router = Router({
@@ -38,7 +44,7 @@ const createRouter = (service) => {
 
 		let payload = ctx.request.body;
 		let email = payload.email;
-		let password = payload.password;
+		let password = payload.password || '';
 
 		if (!email) {
 			pkg
@@ -50,36 +56,36 @@ const createRouter = (service) => {
 		}
 
 		// Getting member system agent
-		let agent = ctx.enginedContext.get('Member')[service.useAgentName];
+		let agent = ctx.enginedContext.get('Member')[service.memberAgent];
 
-		// Getting database agent
-		let dbAgent = ctx.enginedContext.get('MySQL')[agent.dbAgentName];
+		try {
+			// Verify member account
+			let member = await memberAPI.verify(email, password);
 
-		// Finding member by using email
-		let qstr = [
-			'SELECT `name`, `email`, `salt`, `password`',
-			'FROM `members`',
-			'WHERE',
-			'`email` = ?'
-		].join(' ');
-		let [ records ] = await dbAgent.query(qstr, [ email ]);
-		if (records[0].length === 0)
-			ctx.throw(401);
+			// Getting permissions
+			let permissions = await permissionAPI.getPermissions(member.id);
 
-		// Check password
-		if (agent.encryptPassword(records[0].salt, password) !== records[0].password)
-			ctx.throw(401);
-
-		// Prepare JWT package for user
-		pkg
-			.setData({
-				token: agent.generateJwtToken({
-					id: records[0].id,
-					name: records[0].name,
-					email: records[0].email
+			// Prepare JWT package for user
+			pkg
+				.setData({
+					token: agent.generateJwtToken({
+						id: member.id,
+						name: member.name,
+						email: member.email,
+						perms: permissions
+					})
 				})
-			})
-			.sendKoa(ctx);
+				.sendKoa(ctx);
+		} catch(e) {
+
+			switch(e.name) {
+			case 'NotExist':
+			case 'VerificationFailed':
+				ctx.throw(401);
+			}
+
+			console.log(e);
+		}
 	});
 
 	/*
@@ -108,7 +114,7 @@ const createRouter = (service) => {
 			ctx.throw(400);
 
 		// Getting member system agent
-		let agent = ctx.enginedContext.get('Member')[service.useAgentName];
+		let agent = ctx.enginedContext.get('Member')[service.memberAgent];
 
 		// Create a package for restful API
 		let pkg = new RestPack();
@@ -132,13 +138,10 @@ const createRouter = (service) => {
 		// Getting database agent
 		let dbAgent = ctx.enginedContext.get('MySQL')[agent.dbAgentName];
 
-		// Finding member by using email
+		// Create member
+		let ret;
 		try {
-			let qstr = [
-				'INSERT INTO `members` SET ?' 
-			].join(' ');
-
-			let [ ret ] = await dbAgent.query(qstr, {
+			[ ret ] = await dbAgent.query('INSERT INTO `Member` SET ?', {
 				email: email,
 				password: password,
 				salt: salt
@@ -154,15 +157,23 @@ const createRouter = (service) => {
 		}
 
 		if (ret.affectedRows === 0) {
+			// Failed to insert record
 			ctx.throw(500);
 		}
+
+		// Add permissions
+		let permissions = [
+			'Member.access'
+		];
+		await agent.getPermissionManager().addPermission(ret.insertId, permissions);
 
 		// Prepare JWT package for user
 		pkg
 			.setData({
 				token: agent.generateJwtToken({
 					id: ret.insertId,
-					email: email
+					email: email,
+					perms: permissions
 				})
 			})
 			.sendKoa(ctx);
@@ -176,7 +187,7 @@ module.exports = (opts) => class extends RouterService() {
 	constructor(context) {
 		super(context);
 
-		this.useAgentName = opts.useAgentName || 'default';
+		this.memberAgent = opts.memberAgent || 'default';
 	}
 
 	async setupRoutes() {

@@ -1,5 +1,5 @@
 
 module.exports = {
-	Service: require('./lib/Service'),
-	APIProvider: require('./lib/APIProvider')
+	Service: require('./services/Service'),
+	APIProvider: require('./services/APIProvider')
 };
