@@ -79,12 +79,14 @@ const createRouter = (service) => {
 		} catch(e) {
 
 			switch(e.name) {
+			case 'Disabled':
+				ctx.throw(403);
 			case 'NotExist':
 			case 'VerificationFailed':
 				ctx.throw(401);
 			}
 
-			console.log(e);
+			console.error(e);
 		}
 	});
 
@@ -131,52 +133,38 @@ const createRouter = (service) => {
 			return;
 		}
 
-		// Encrypt password
-		let salt = agent.generateSalt();
-		let password = agent.encryptPassword(salt, payload.password);
-
-		// Getting database agent
-		let dbAgent = ctx.enginedContext.get('MySQL')[agent.dbAgentName];
-
-		// Create member
-		let ret;
 		try {
-			[ ret ] = await dbAgent.query('INSERT INTO `Member` SET ?', {
-				email: email,
-				password: password,
-				salt: salt
-			});
+
+			// Verify member account
+			let memberId = await memberAPI.createMember(email, payload.password);
+
+			// Apply permissions
+			let permissions = [
+				'Member.access'
+			];
+			await agent.getPermissionManager().addPermission(memberId, permissions);
+
+			// Prepare JWT package for user
+			pkg
+				.setData({
+					token: agent.generateJwtToken({
+						id: memberId,
+						email: email,
+						perms: permissions
+					})
+				})
+				.sendKoa(ctx);
 		} catch(e) {
 
-			// Account exists already
-			if (e.code === 'ER_DUP_ENTRY') {
-				ctx.throw(409, 'Account exists already');
+			switch(e.name) {
+			case 'MemberExists':
+				ctx.throw(409, e.message);
+			case 'MemberCreationFailed':
+				ctx.throw(500);
 			}
 
-			ctx.throw(500);
+			console.error(e);
 		}
-
-		if (ret.affectedRows === 0) {
-			// Failed to insert record
-			ctx.throw(500);
-		}
-
-		// Add permissions
-		let permissions = [
-			'Member.access'
-		];
-		await agent.getPermissionManager().addPermission(ret.insertId, permissions);
-
-		// Prepare JWT package for user
-		pkg
-			.setData({
-				token: agent.generateJwtToken({
-					id: ret.insertId,
-					email: email,
-					perms: permissions
-				})
-			})
-			.sendKoa(ctx);
 	});
 
 	return router;
