@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const { Service } = require('engined');
 const Agent = require('../lib/Agent');
 const Permission = require('../lib/Permission');
+const Joi = require('joi');
 
 module.exports = (opts = {}) => class extends Service {
 
@@ -10,6 +11,7 @@ module.exports = (opts = {}) => class extends Service {
 		super(context);
 
 		this.agent = null;
+		this.opts = opts;
 		this.agentName = opts.agentName || 'default';
 		this.httpAgent = opts.httpAgent || 'default';
 		this.dbAgent = opts.dbAgent || 'default';

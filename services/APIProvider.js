@@ -41,28 +41,17 @@ const createRouter = (service) => {
 		if (!ctx.request.body)
 			ctx.throw(400);
 
+		let payload = ctx.request.body;
+
 		// Create a package for restful API
 		let pkg = new RestPack();
-
-		let payload = ctx.request.body;
-		let email = payload.email;
-		let password = payload.password || '';
-
-		if (!email) {
-			pkg
-				.setStatus(RestPack.Status.ValidationFailed)
-				.appendError('email', RestPack.Code.Required)
-				.sendKoa(ctx);
-
-			return;
-		}
 
 		// Getting member system agent
 		let agent = ctx.enginedContext.get('Member')[service.memberAgent];
 
 		try {
 			// Verify member account
-			let member = await memberAPI.verify(email, password);
+			let member = await memberAPI.verify(payload);
 
 			// Getting permissions
 			let permissions = await permissionAPI.getPermissions(member.id);
@@ -81,6 +70,23 @@ const createRouter = (service) => {
 		} catch(e) {
 
 			switch(e.name) {
+			case 'ValidationFailed':
+				pkg.setStatus(RestPack.Status.ValidationFailed);
+
+				e.errors.reduce((pkg, error) => {
+					switch(error.type) {
+					case 'any.required':
+						pkg.appendError(error.field, RestPack.Code.Required);
+						break;
+					default:
+						pkg.appendError(error.field, RestPack.Code.Invalid);
+					}
+
+					return pkg;
+				}, pkg);
+
+				pkg.sendKoa(ctx);
+				break;
 			case 'Disabled':
 				ctx.throw(403);
 			case 'NotExist':
@@ -118,20 +124,10 @@ const createRouter = (service) => {
 		if (!ctx.request.body)
 			ctx.throw(400);
 
+		let payload = ctx.request.body;
+
 		// Create a package for restful API
 		let pkg = new RestPack();
-
-		let payload = ctx.request.body;
-		let email = payload.email;
-
-		if (!email) {
-			pkg
-				.setStatus(RestPack.Status.ValidationFailed)
-				.appendError('email', RestPack.Code.Required)
-				.sendKoa(ctx);
-
-			return;
-		}
 
 		try {
 
@@ -139,7 +135,7 @@ const createRouter = (service) => {
 			let agent = ctx.enginedContext.get('Member')[service.memberAgent];
 
 			// Verify member account
-			let memberId = await memberAPI.createMember(email, payload.password);
+			let memberId = await memberAPI.createMember(payload);
 
 			// Apply permissions
 			let permissions = [
@@ -160,13 +156,31 @@ const createRouter = (service) => {
 		} catch(e) {
 
 			switch(e.name) {
+			case 'ValidationFailed':
+				pkg.setStatus(RestPack.Status.ValidationFailed);
+
+				e.errors.reduce((pkg, error) => {
+					switch(error.type) {
+					case 'any.required':
+						pkg.appendError(error.field, RestPack.Code.Required);
+						break;
+					default:
+						pkg.appendError(error.field, RestPack.Code.Invalid);
+					}
+
+					return pkg;
+				}, pkg);
+
+				pkg.sendKoa(ctx);
+				break;
+
 			case 'MemberExists':
 				ctx.throw(409, e.message);
 			case 'MemberCreationFailed':
 				ctx.throw(500);
+			default:
+				console.error(e);
 			}
-
-			console.error(e);
 		}
 	});
 
