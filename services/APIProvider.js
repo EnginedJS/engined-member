@@ -9,14 +9,15 @@ const createRouter = (service) => {
 	// Getting member system agent
 	const memberAPI = MemberAPI(service);
 	const permissionAPI = PermissionAPI(service);
+	const Permission = service.getContext().get('Member')[service.memberAgent].getPermissionMiddleware();
 
 	// Create a new router
 	let router = Router({
-		prefix: '/api/v1/member'
+		prefix: '/api/v1'
 	});
 
 	/*
-	 * @api {post} /api/v1/member/auth Authorize account to sign in
+	 * @api {post} /api/v1/members/authorize Authorize account to sign in
 	 * @apiName Authorize
 	 * @apiGroup Member
 	 *
@@ -36,7 +37,7 @@ const createRouter = (service) => {
 	 *		]
 	 *	}
 	 */
-	router.post('/auth', async (ctx, next) => {
+	router.post('/members/authorize', async (ctx, next) => {
 
 		if (!ctx.request.body)
 			ctx.throw(400);
@@ -100,7 +101,7 @@ const createRouter = (service) => {
 	});
 
 	/*
-	 * @api {post} /api/v1/member/signup Sign up an account
+	 * @api {post} /api/v1/members Sign up an account
 	 * @apiName SignUp
 	 * @apiGroup Member
 	 *
@@ -119,7 +120,7 @@ const createRouter = (service) => {
 	 *		]
 	 *	}
 	 */
-	router.post('/signup', async (ctx) => {
+	router.post('/members', async (ctx) => {
 
 		if (!ctx.request.body)
 			ctx.throw(400);
@@ -148,7 +149,7 @@ const createRouter = (service) => {
 				.setData({
 					token: agent.generateJwtToken({
 						id: memberId,
-						email: email,
+						email: payload.email,
 						perms: permissions
 					})
 				})
@@ -181,6 +182,46 @@ const createRouter = (service) => {
 			default:
 				console.error(e);
 			}
+		}
+	});
+
+	/*
+	 * @api {get} /api/v1/members/profile Getting users profile
+	 * @apiName GetMemberProfile
+	 * @apiGroup Member
+	 *
+	 * @apiHeader {String} authorization users token
+	 *
+	 * @apiSuccess {String} token Access token
+	 * @apiError 400 {String} BadRequest
+	 * @apiError 401 {String} NotExist Account doesn't exist
+	 * @apiError 403 {String} Disabled Account is disabled
+	 */
+	router.get('/members/profile', Permission('Member.access'), async (ctx, next) => {
+
+		// Create a package for restful API
+		let pkg = new RestPack();
+
+		// Getting member system agent
+		let agent = ctx.enginedContext.get('Member')[service.memberAgent];
+
+		try {
+			// Verify member account
+			let member = await memberAPI.getProfile(ctx.state.session.id);
+
+
+			// Prepare JWT package for user
+			pkg
+				.setData(member)
+				.sendKoa(ctx);
+		} catch(e) {
+
+			switch(e.name) {
+			case 'NotExist':
+				ctx.throw(401);
+			}
+
+			console.error(e);
 		}
 	});
 

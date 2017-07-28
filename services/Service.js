@@ -43,7 +43,7 @@ module.exports = (opts = {}) => class extends Service {
 				ctx.state = {};
 
 			// not yet authorized
-			if (ctx.headers.Authorization === undefined) {
+			if (ctx.headers.authorization === undefined) {
 				await next();
 				return;
 			}
@@ -52,16 +52,19 @@ module.exports = (opts = {}) => class extends Service {
 			let agent = this.getContext().get('Member')[this.agentName];
 
 			// Getting JWT token
-			let authString = ctx.headers.Authorzation.split(' ');
+			let authString = ctx.headers.authorization.split(' ');
 			if (authString[0] !== 'JWT') {
 				await next();
 				return;
 			}
 
-			// Decode payload from JWT token
-			let payload = agent.decodeJwtToken(authString[1]);
-
-			ctx.state.session = payload;
+			try {
+				// Decode payload from JWT token
+				let payload = agent.decodeJwtToken(authString[1]);
+				ctx.state.session = payload;
+			} catch(e) {
+				// failed to decode invalid token
+			}
 
 			await next();
 		});
@@ -71,6 +74,7 @@ module.exports = (opts = {}) => class extends Service {
 
 		// Setup permission for member who logined already
 		this.agent.getPermissionManager().registerPermission('Member', 'access');
+		this.agent.getPermissionManager().registerPermission('Admin', 'access');
 	}
 
 	async stop() {
