@@ -2,7 +2,6 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { Service } = require('engined');
 const Agent = require('../lib/Agent');
-const Permission = require('../lib/Permission');
 const Joi = require('joi');
 
 module.exports = (opts = {}) => class extends Service {
@@ -15,15 +14,6 @@ module.exports = (opts = {}) => class extends Service {
 		this.agentName = opts.agentName || 'default';
 		this.httpAgent = opts.httpAgent || 'default';
 		this.dbAgent = opts.dbAgent || 'default';
-		this.expiresIn = opts.expiresIn || 30 * 24 * 60 * 60 * 1000;
-		this.secret = opts.secret || '';
-		this.perms = {};
-		this.signInUrl = '/signin';
-		this.defaultReject = async (ctx, next) => {
-
-			// Redirect to login page
-			ctx.redirect(this.signInUrl);
-		};
 	}
 
 	async start() {
@@ -43,7 +33,7 @@ module.exports = (opts = {}) => class extends Service {
 				ctx.state = {};
 
 			// not yet authorized
-			if (ctx.headers.authorization === undefined) {
+			if (!ctx.headers.authorization) {
 				await next();
 				return;
 			}
@@ -73,8 +63,49 @@ module.exports = (opts = {}) => class extends Service {
 		this.agent = context[this.agentName] = new Agent(this);
 
 		// Setup permission for member who logined already
-		this.agent.getPermissionManager().registerPermission('Member', 'access');
-		this.agent.getPermissionManager().registerPermission('Admin', 'access');
+		let handler = this.agent
+			.getPermissionManager()
+			.registerPermission('Member', 'access', 'Standard member access rights');
+
+		handler.check(async (ctx, next) => {
+
+			// Check whether user is disabled or not
+			if (await this.agent.getMemberManager().isDisabled(ctx.state.session.id)) {
+
+				if (ctx.state.routeType === 'API') {
+					ctx.throw(403);
+				} else {
+					// TODO: redirect to page for disabled account
+					return;
+				}
+			}
+
+			ctx.state.session.disabled = false;
+			await next();
+		});
+
+		// Setup permission for administrator
+		let adminHandler = this.agent
+			.getPermissionManager()
+			.registerPermission('Admin', 'access', 'Standard administrator access rights');
+
+		adminHandler.check(async (ctx, next) => {
+
+			// Check whether user is disabled or not
+			if (await this.agent.getMemberManager().isDisabled(ctx.state.session.id)) {
+
+				if (ctx.state.routeType === 'API') {
+					ctx.throw(403);
+				} else {
+					// TODO: redirect to page for disabled account
+					return;
+				}
+			}
+
+			ctx.state.session.disabled = false;
+			await next();
+		});
+
 	}
 
 	async stop() {

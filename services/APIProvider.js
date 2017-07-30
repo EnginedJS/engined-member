@@ -1,20 +1,21 @@
-const Router = require('koa-router');
 const { RouterService } = require('engined-http');
 const RestPack = require('restpack');
-const MemberAPI = require('../lib/Member');
-const PermissionAPI = require('../lib/Permission');
+
+console.log(RouterService);
 
 const createRouter = (service) => {
 
 	// Getting member system agent
-	const memberAPI = MemberAPI(service);
-	const permissionAPI = PermissionAPI(service);
-	const Permission = service.getContext().get('Member')[service.memberAgent].getPermissionMiddleware();
+	const memberAgent = service.getContext().get('Member')[service.memberAgent];
+	const Permission = memberAgent.getPermissionMiddleware();
 
 	// Create a new router
-	let router = Router({
+	let router = service.createRouter({
 		prefix: '/api/v1'
 	});
+
+	// Set type to "API" for router
+	router.use(service.routeType('API'));
 
 	/*
 	 * @api {post} /api/v1/members/authorize Authorize account to sign in
@@ -47,20 +48,17 @@ const createRouter = (service) => {
 		// Create a package for restful API
 		let pkg = new RestPack();
 
-		// Getting member system agent
-		let agent = ctx.enginedContext.get('Member')[service.memberAgent];
-
 		try {
 			// Verify member account
-			let member = await memberAPI.verify(payload);
+			let member = await memberAgent.getMemberManager().verify(payload);
 
 			// Getting permissions
-			let permissions = await permissionAPI.getPermissions(member.id);
+			let permissions = await memberAgent.getPermissionManager().getPermissions(member.id);
 
 			// Prepare JWT package for user
 			pkg
 				.setData({
-					token: agent.generateJwtToken({
+					token: memberAgent.generateJwtToken({
 						id: member.id,
 						name: member.name,
 						email: member.email,
@@ -132,22 +130,19 @@ const createRouter = (service) => {
 
 		try {
 
-			// Getting member system agent
-			let agent = ctx.enginedContext.get('Member')[service.memberAgent];
-
 			// Verify member account
-			let memberId = await memberAPI.createMember(payload);
+			let memberId = await memberAgent.getMemberManager().createMember(payload);
 
 			// Apply permissions
 			let permissions = [
 				'Member.access'
 			];
-			await agent.getPermissionManager().addPermission(memberId, permissions);
+			await memberAgent.getPermissionManager().addPermission(memberId, permissions);
 
 			// Prepare JWT package for user
 			pkg
 				.setData({
-					token: agent.generateJwtToken({
+					token: memberAgent.generateJwtToken({
 						id: memberId,
 						email: payload.email,
 						perms: permissions
@@ -202,18 +197,15 @@ const createRouter = (service) => {
 		// Create a package for restful API
 		let pkg = new RestPack();
 
-		// Getting member system agent
-		let agent = ctx.enginedContext.get('Member')[service.memberAgent];
-
 		try {
 			// Verify member account
-			let member = await memberAPI.getProfile(ctx.state.session.id);
-
+			let member = await memberAgent.getMemberManager().getProfile(ctx.state.session.id);
 
 			// Prepare JWT package for user
 			pkg
 				.setData(member)
 				.sendKoa(ctx);
+
 		} catch(e) {
 
 			switch(e.name) {
