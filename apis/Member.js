@@ -15,11 +15,11 @@ module.exports = (service) => {
 	router.use(service.routeType('API'));
 
 	/*
-	 * @api {get} /api/v1/members/profile Getting users profile
+	 * @api {get} /api/v1/members/profile Getting member's profile
 	 * @apiName GetMemberProfile
 	 * @apiGroup Member
 	 *
-	 * @apiHeader {String} authorization users token
+	 * @apiHeader {String} authorization user's token
 	 *
 	 * @apiSuccess {Object} Member information
 	 * @apiError 400 {String} BadRequest
@@ -44,7 +44,7 @@ module.exports = (service) => {
 
 			switch(e.name) {
 			case 'NotExist':
-				ctx.throw(404);
+				pkg.setStatus(RestPack.Status.NotFound).sendKoa(ctx);
 			}
 
 			console.error(e);
@@ -52,11 +52,48 @@ module.exports = (service) => {
 	});
 
 	/*
-	 * @api {put} /api/v1/members/password Getting users profile
-	 * @apiName GetMemberProfile
+	 * @api {put} /api/v1/members/profile Update member's profile
+	 * @apiName UpdateMemberProfile
 	 * @apiGroup Member
 	 *
-	 * @apiHeader {String} authorization users token
+	 * @apiHeader {String} authorization user's token
+	 *
+	 * @apiSuccess {Object} Member information
+	 * @apiError 400 {String} BadRequest
+	 * @apiError 403 {String} Disabled Account is disabled
+	 * @apiError 404 {String} NotFound Account doesn't exist
+	 */
+	router.put('/members/profile', Permission('Member.access'), async (ctx, next) => {
+
+		// Create a package for restful API
+		let pkg = new RestPack();
+
+		try {
+			// Verify member account
+			let member = await memberAgent.getMemberManager().updateProfile(ctx.state.session.id);
+
+			// Response
+			pkg
+				.setData(member)
+				.sendKoa(ctx);
+
+		} catch(e) {
+
+			switch(e.name) {
+			case 'NotExist':
+				pkg.setStatus(RestPack.Status.NotFound).sendKoa(ctx);
+			}
+
+			console.error(e);
+		}
+	});
+
+	/*
+	 * @api {put} /api/v1/members/password Change member's password
+	 * @apiName ChangeMemberPassword
+	 * @apiGroup Member
+	 *
+	 * @apiHeader {String} authorization user's token
 	 * @apiParam {String} old Old password
 	 * @apiParam {String} new New password
 	 *
@@ -85,7 +122,7 @@ module.exports = (service) => {
 			// Verify member account
 			await memberAgent.getMemberManager().changePassword(ctx.state.session.id, payload['old'], payload['new']);
 
-			// Prepare JWT package for user
+			// Response
 			pkg
 				.setData({
 					message: 'Success'

@@ -15,7 +15,7 @@ module.exports = (service) => {
 	router.use(service.routeType('API'));
 
 	/*
-	 * @api {post} /api/v1/members/authorize Authorize account to sign in
+	 * @api {post} /api/v1/members/authenticate Authenticate account to sign in
 	 * @apiName Authorize
 	 * @apiGroup Member
 	 *
@@ -24,26 +24,22 @@ module.exports = (service) => {
 	 *
 	 * @apiSuccess {String} token Access token
 	 * @apiError 400 {String} BadRequest
-	 * @apiError 401 {String} NotExist Account doesn't exist
-	 * @apiError 403 {String} Disabled Account is disabled
+	 * @apiError 401 {String} AuthenticationFailed Authentication failed
+	 * @apiError 403 {String} AccountBlocked Account is disabled
 	 * @apiError 422 {Object} ValidationFailed Parameters are invalid
 	 * @apiErrorExample {json} Error-Response:
 	 *	{
+	 *		code: 'ValidationFailed',
 	 *		message: 'Validation Failed',
 	 *		errors: [
-	 *			{ field: 'email', code: 1  }
+	 *			{ field: 'email', code: 'required'  },
+	 *			{ field: 'passsword', code: 'invalid'  }
 	 *		]
 	 *	}
 	 */
-	router.post('/members/authorize', async (ctx, next) => {
-
-		if (!ctx.request.body)
-			ctx.throw(400);
+	router.post('/members/authenticate', async (ctx, next) => {
 
 		let payload = ctx.request.body;
-
-		// Create a package for restful API
-		let pkg = new RestPack();
 
 		try {
 			// Verify member account
@@ -53,45 +49,51 @@ module.exports = (service) => {
 			let permissions = await memberAgent.getPermissionManager().getPermissions(member.id);
 
 			// Prepare JWT package for user
-			pkg
-				.setData({
-					token: memberAgent.generateJwtToken({
-						id: member.id,
-						name: member.name,
-						email: member.email,
-						perms: permissions
-					})
+			ctx.body = {
+				token: memberAgent.generateJwtToken({
+					id: member.id,
+					name: member.name,
+					email: member.email,
+					perms: permissions
 				})
-				.sendKoa(ctx);
+			};
+
 		} catch(e) {
 
 			switch(e.name) {
 			case 'ValidationFailed':
-				pkg.setStatus(RestPack.Status.ValidationFailed);
+				ctx.throw(422, {
+					code: 'ValidationFailed',
+					message: 'Validation failed',
+					errors: e.errors.map((error) => {
+						switch(error.type) {
+						case 'any.required':
+							return {
+								field: error.field,
+								code: 'required'
+							};
 
-				e.errors.reduce((pkg, error) => {
-					switch(error.type) {
-					case 'any.required':
-						pkg.appendError(error.field, RestPack.Code.Required);
-						break;
-					default:
-						pkg.appendError(error.field, RestPack.Code.Invalid);
-					}
+						default:
+							return {
+								field: error.field,
+								code: 'invalid'
+							};
+						}
+					})
+				});
 
-					return pkg;
-				}, pkg);
-
-				pkg.sendKoa(ctx);
-				break;
 			case 'Disabled':
-				ctx.throw(403);
+				ctx.throw(403, {
+					code: 'AccountBlocked',
+					message: 'Account was blocked'
+				});
 			case 'NotExist':
-				ctx.throw(401);
 			case 'VerificationFailed':
-				ctx.throw(422);
+				ctx.throw(401, {
+					code: 'AuthenticationFailed',
+					message: 'Authentication failed'
+				});
 			}
-
-			console.error(e);
 		}
 	});
 
