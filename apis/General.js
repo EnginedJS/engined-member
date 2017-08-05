@@ -1,5 +1,3 @@
-const RestPack = require('restpack');
-
 module.exports = (service) => {
 
 	// Getting member system agent
@@ -7,15 +5,15 @@ module.exports = (service) => {
 	const Permission = memberAgent.getPermissionMiddleware();
 
 	// Create a new router
-	let router = service.createRouter({
+	const router = service.createRouter({
 		prefix: '/api/v1'
 	});
 
 	// Set type to "API" for router
 	router.use(service.routeType('API'));
 
-	/*
-	 * @api {post} /api/v1/members/authenticate Authenticate account to sign in
+	/**
+	 * @api {post} /api/v1/members/authenticate Sign in
 	 * @apiName Authorize
 	 * @apiGroup Member
 	 *
@@ -23,11 +21,12 @@ module.exports = (service) => {
 	 * @apiParam {String} password password
 	 *
 	 * @apiSuccess {String} token Access token
-	 * @apiError 400 {String} BadRequest
-	 * @apiError 401 {String} AuthenticationFailed Authentication failed
-	 * @apiError 403 {String} AccountBlocked Account is disabled
-	 * @apiError 422 {Object} ValidationFailed Parameters are invalid
+	 *
+	 * @apiError 401 Authentication failed
+	 * @apiError 403 Account is disabled
+	 * @apiError 422 Parameters are invalid
 	 * @apiErrorExample {json} Error-Response:
+	 *	HTTP/1.1 422 Validation Failed
 	 *	{
 	 *		code: 'ValidationFailed',
 	 *		message: 'Validation Failed',
@@ -36,26 +35,32 @@ module.exports = (service) => {
 	 *			{ field: 'passsword', code: 'invalid'  }
 	 *		]
 	 *	}
-	 */
+	 **/
 	router.post('/members/authenticate', async (ctx, next) => {
 
-		let payload = ctx.request.body;
+		const payload = ctx.request.body;
 
 		try {
 			// Verify member account
-			let member = await memberAgent.getMemberManager().verify(payload);
+			const member = await memberAgent
+				.getMemberManager()
+				.verifyMember(payload);
 
 			// Getting permissions
-			let permissions = await memberAgent.getPermissionManager().getPermissions(member.id);
+			const permissions = await memberAgent
+				.getPermissionManager()
+				.getPermissions(member.id);
 
-			// Prepare JWT package for user
+			// Response
 			ctx.body = {
 				token: memberAgent.generateJwtToken({
 					id: member.id,
 					name: member.name,
 					email: member.email,
 					perms: permissions
-				})
+				}),
+				name: member.name,
+				email: member.email
 			};
 
 		} catch(e) {
@@ -87,6 +92,7 @@ module.exports = (service) => {
 					code: 'AccountBlocked',
 					message: 'Account was blocked'
 				});
+
 			case 'NotExist':
 			case 'VerificationFailed':
 				ctx.throw(401, {
@@ -94,10 +100,12 @@ module.exports = (service) => {
 					message: 'Authentication failed'
 				});
 			}
+
+			throw e;
 		}
 	});
 
-	/*
+	/**
 	 * @api {post} /api/v1/members Sign up an account
 	 * @apiName SignUp
 	 * @apiGroup Member
@@ -105,77 +113,91 @@ module.exports = (service) => {
 	 * @apiParam {String} email member's email
 	 * @apiParam {String} password password
 	 *
-	 * @apiSuccess {String} token Access token
-	 * @apiError 400 {String} BadRequest
-	 * @apiError 409 {String} MemberExistsAlready
-	 * @apiError 422 {Object} ValidationFailed Parameters are invalid
-	 * @apiErrorExample {json} Error-Response:
+	 * @apiSuccess (201) {String} token Access token
+	 * @apiSuccess (201) {String} email email of the account
+	 * @apiSuccess (201) {Array} perms permissions of the account
+	 * @apiSuccessExample {json} Success-Response:
+	 *	HTTP/1.1 201 Created
 	 *	{
-	 *		message: 'Validation Failed',
-	 *		errors: [
-	 *			{ field: 'email', code: 1  }
+	 *		"token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwibmFtZSI6IkZyZWQgQ2hpZW4iLCJlbWFpbCI6ImNmc2d",
+	 *		"email": "fred@example.com",
+	 *		"perms": [
+	 *			"Member.access"
 	 *		]
 	 *	}
-	 */
+	 *
+	 * @apiError 409 Member exists already
+	 * @apiError 422 Parameters are invalid
+	 * @apiErrorExample {json} Error-Response:
+	 *	HTTP/1.1 422 Validation Failed
+	 *	{
+	 *		"code": "ValidationFailed",
+	 *		"message": "Validation Failed",
+	 *		"errors": [
+	 *			{ field: "email", code: "required" },
+	 *			{ field: 'passsword', code: 'invalid'  }
+	 *		]
+	 *	}
+	 **/
 	router.post('/members', async (ctx) => {
 
-		if (!ctx.request.body)
-			ctx.throw(400);
-
-		let payload = ctx.request.body;
-
-		// Create a package for restful API
-		let pkg = new RestPack();
+		const payload = ctx.request.body;
 
 		try {
 
 			// Verify member account
-			let memberId = await memberAgent.getMemberManager().createMember(payload);
+			const memberId = await memberAgent
+				.getMemberManager()
+				.createMember(payload);
 
 			// Apply permissions
-			let permissions = [
+			const permissions = [
 				'Member.access'
 			];
-			await memberAgent.getPermissionManager().addPermission(memberId, permissions);
+			await memberAgent
+				.getPermissionManager()
+				.addPermission(memberId, permissions);
 
-			// Prepare JWT package for user
-			pkg
-				.setData({
-					token: memberAgent.generateJwtToken({
-						id: memberId,
-						email: payload.email,
-						perms: permissions
-					})
+			// Response
+			ctx.body = {
+				token: memberAgent.generateJwtToken({
+					id: memberId,
+					email: payload.email,
+					perms: permissions
 				})
-				.sendKoa(ctx);
+			};
 		} catch(e) {
 
 			switch(e.name) {
 			case 'ValidationFailed':
-				pkg.setStatus(RestPack.Status.ValidationFailed);
+				ctx.throw(422, {
+					code: 'ValidationFailed',
+					message: 'Validation failed',
+					errors: e.errors.map((error) => {
+						switch(error.type) {
+						case 'any.required':
+							return {
+								field: error.field,
+								code: 'required'
+							};
 
-				e.errors.reduce((pkg, error) => {
-					switch(error.type) {
-					case 'any.required':
-						pkg.appendError(error.field, RestPack.Code.Required);
-						break;
-					default:
-						pkg.appendError(error.field, RestPack.Code.Invalid);
-					}
-
-					return pkg;
-				}, pkg);
-
-				pkg.sendKoa(ctx);
-				break;
+						default:
+							return {
+								field: error.field,
+								code: 'invalid'
+							};
+						}
+					})
+				});
 
 			case 'MemberExists':
-				ctx.throw(409, e.message);
-			case 'MemberCreationFailed':
-				ctx.throw(500);
-			default:
-				console.error(e);
+				ctx.throw(409, {
+					code: 'MemberExists',
+					message: e.message
+				});
 			}
+
+			throw e;
 		}
 	});
 
