@@ -1,4 +1,5 @@
-const RestPack = require('restpack');
+const mime = require('mime');
+const busboy = require('async-busboy');
 
 module.exports = (service) => {
 
@@ -163,6 +164,94 @@ module.exports = (service) => {
 				ctx.throw(404, {
 					code: 'NotExist',
 					message: 'Account doesn\'t exist'
+				});
+			}
+
+			throw e;
+		}
+	});
+
+	/**
+	 * @api {post} /api/v1/members/avatar Upload avatar picture
+	 * @apiName UploadAvatar
+	 * @apiGroup Member
+	 *
+	 * @apiSuccess {String} token Access token
+	 *
+	 * @apiError 401 Authentication failed
+	 * @apiError 403 Account is disabled
+	 * @apiError 422 Parameters are invalid
+	 * @apiErrorExample {json} Error-Response:
+	 *	HTTP/1.1 422 Validation Failed
+	 *	{
+	 *		code: 'ValidationFailed',
+	 *		message: 'Validation Failed',
+	 *		errors: [
+	 *			{ field: 'email', code: 'required'  },
+	 *			{ field: 'passsword', code: 'invalid'  }
+	 *		]
+	 *	}
+	 **/
+	router.post('/members/avatar', async (ctx, next) => {
+
+		try {
+			let avatarUrl = await new Promise(async (resolve, reject) => {
+
+				try {
+					let ret = await busboy(ctx.req, {
+						onFile: async (fieldName, file, filename, encoding, mimetype) => {
+
+							if (fieldName !== 'avatar')
+								return;
+
+							// Update avatar picture
+							let avatarUrl = await memberAgent
+								.getMemberManager()
+								.updateAvatarByStream(ctx.state.session.id, {
+									contentType: mimetype,
+									size: ctx.request.headers['content-length'] 
+								}, file);
+
+							resolve(avatarUrl);
+						}
+					});
+				} catch(e) {
+					reject(e);
+				}
+			});
+
+			// Response
+			ctx.body = {
+				avatar_url: avatarUrl
+			};
+
+		} catch(e) {
+
+			switch(e.name) {
+			case 'ValidationFailed':
+				ctx.throw(422, {
+					code: 'ValidationFailed',
+					message: 'Validation failed',
+					errors: e.errors.map((error) => {
+						switch(error.type) {
+						case 'any.required':
+							return {
+								field: error.field,
+								code: 'required'
+							};
+
+						default:
+							return {
+								field: error.field,
+								code: 'invalid'
+							};
+						}
+					})
+				});
+			case 'NotExist':
+				ctx.throw(401, {
+					code: 'AuthenticationFailed',
+					message: 'Authentication failed'
 				});
 			}
 

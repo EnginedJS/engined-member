@@ -25,10 +25,13 @@
   },
   "homepage": "https://github.com/EnginedJS/engined-member#readme",
   "dependencies": {
+    "async-busboy": "^0.6.1",
     "engined": "0.0.2",
     "engined-http": "0.0.4",
     "joi": "^10.6.0",
     "jsonwebtoken": "^7.4.1",
-    "restpack": "0.0.6"
+    "mime": "^1.3.6",
+    "restpack": "0.0.6",
+    "uuid": "^3.1.0"
   }
 }

@@ -9,11 +9,16 @@ module.exports = (opts = {}) => class extends Service {
 	constructor(context) {
 		super(context);
 
+		this.dependencies = [
+			'Storage',
+			'MySQL'
+		];
 		this.agent = null;
 		this.opts = opts;
 		this.agentName = opts.agentName || 'default';
 		this.httpAgent = opts.httpAgent || 'default';
 		this.dbAgent = opts.dbAgent || 'default';
+		this.storageAgent = opts.storageAgent || 'default';
 	}
 
 	async start() {
