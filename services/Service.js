@@ -11,6 +11,7 @@ module.exports = (opts = {}) => class extends Service {
 
 		this.dependencies = [
 			'Storage',
+			'HTTP',
 			'MySQL'
 		];
 		this.agent = null;
@@ -19,6 +20,70 @@ module.exports = (opts = {}) => class extends Service {
 		this.httpAgent = opts.httpAgent || 'default';
 		this.dbAgent = opts.dbAgent || 'default';
 		this.storageAgent = opts.storageAgent || 'default';
+	}
+
+	async registerPermissions() {
+
+		const permissions = [
+			() => {
+				// Setup permission for member who logined already
+				let handler = this.agent
+					.getPermissionManager()
+					.registerPermission('Member', 'access', 'Standard member access rights');
+
+				handler.check(async (ctx, next) => {
+
+					// Check whether user is disabled or not
+					if (await this.agent.getMemberManager().isDisabled(ctx.state.session.id)) {
+
+						if (ctx.state.routeType === 'API') {
+							ctx.throw(403);
+						} else {
+							// TODO: redirect to page for disabled account
+							return;
+						}
+					}
+
+					ctx.state.session.disabled = false;
+					await next();
+				});
+			},
+			() => {
+
+				// Setup permission for managing members
+				this.agent
+					.getPermissionManager()
+					.registerPermission('Member', 'list', 'list members rights');
+			},
+			() => {
+
+				// Setup permission for administrator
+				let adminHandler = this.agent
+					.getPermissionManager()
+					.registerPermission('Admin', 'access', 'Standard administrator access rights');
+
+				adminHandler.check(async (ctx, next) => {
+
+					// Check whether user is disabled or not
+					if (await this.agent.getMemberManager().isDisabled(ctx.state.session.id)) {
+
+						if (ctx.state.routeType === 'API') {
+							ctx.throw(403);
+						} else {
+							// TODO: redirect to page for disabled account
+							return;
+						}
+					}
+
+					ctx.state.session.disabled = false;
+					await next();
+				});
+			}
+		];
+
+		permissions.map((register) => {
+			return register();
+		});
 	}
 
 	async start() {
@@ -56,6 +121,12 @@ module.exports = (opts = {}) => class extends Service {
 			try {
 				// Decode payload from JWT token
 				let payload = agent.decodeJwtToken(authString[1]);
+
+				// Getting latest permissions from database
+				payload.perms = await agent
+					.getPermissionManager()
+					.getPermissions(payload.id);
+
 				ctx.state.session = payload;
 			} catch(e) {
 				// failed to decode invalid token
@@ -67,50 +138,8 @@ module.exports = (opts = {}) => class extends Service {
 		// Add agent
 		this.agent = context[this.agentName] = new Agent(this);
 
-		// Setup permission for member who logined already
-		let handler = this.agent
-			.getPermissionManager()
-			.registerPermission('Member', 'access', 'Standard member access rights');
-
-		handler.check(async (ctx, next) => {
-
-			// Check whether user is disabled or not
-			if (await this.agent.getMemberManager().isDisabled(ctx.state.session.id)) {
-
-				if (ctx.state.routeType === 'API') {
-					ctx.throw(403);
-				} else {
-					// TODO: redirect to page for disabled account
-					return;
-				}
-			}
-
-			ctx.state.session.disabled = false;
-			await next();
-		});
-
-		// Setup permission for administrator
-		let adminHandler = this.agent
-			.getPermissionManager()
-			.registerPermission('Admin', 'access', 'Standard administrator access rights');
-
-		adminHandler.check(async (ctx, next) => {
-
-			// Check whether user is disabled or not
-			if (await this.agent.getMemberManager().isDisabled(ctx.state.session.id)) {
-
-				if (ctx.state.routeType === 'API') {
-					ctx.throw(403);
-				} else {
-					// TODO: redirect to page for disabled account
-					return;
-				}
-			}
-
-			ctx.state.session.disabled = false;
-			await next();
-		});
-
+		// Register all permissions
+		this.registerPermissions();
 	}
 
 	async stop() {
