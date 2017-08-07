@@ -228,26 +228,6 @@ module.exports = (service) => {
 		} catch(e) {
 
 			switch(e.name) {
-			case 'ValidationFailed':
-				ctx.throw(422, {
-					code: 'ValidationFailed',
-					message: 'Validation failed',
-					errors: e.errors.map((error) => {
-						switch(error.type) {
-						case 'any.required':
-							return {
-								field: error.field,
-								code: 'required'
-							};
-
-						default:
-							return {
-								field: error.field,
-								code: 'invalid'
-							};
-						}
-					})
-				});
 			case 'NotExist':
 				ctx.throw(401, {
 					code: 'AuthenticationFailed',
