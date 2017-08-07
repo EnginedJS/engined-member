@@ -111,9 +111,14 @@ module.exports = (service) => {
 	 **/
 	router.post('/members/reset_password', async (ctx, next) => {
 
+		if (ctx.state.session === undefined) {
+			ctx.throw(403);
+		}
+
 		const payload = ctx.request.body;
 
 		try {
+
 			// Verify member account
 			const member = await memberAgent
 				.getMemberManager()
