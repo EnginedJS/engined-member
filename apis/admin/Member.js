@@ -26,7 +26,6 @@ module.exports = (service) => {
 	 * @apiError 404 NotFound Account doesn't exist
 	 **/
 	router.get('/admin/member/:memberId', Permission('Admin.access'), Permission('Member.list'), async (ctx, next) => {
-	//router.get('/admin/member/:memberId', Permission('Member.access'), async (ctx, next) => {
 
 		try {
 			// Getting member profile
