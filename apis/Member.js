@@ -179,18 +179,6 @@ module.exports = (service) => {
 	 * @apiSuccess {String} token Access token
 	 *
 	 * @apiError 401 Authentication failed
-	 * @apiError 403 Account is disabled
-	 * @apiError 422 Parameters are invalid
-	 * @apiErrorExample {json} Error-Response:
-	 *	HTTP/1.1 422 Validation Failed
-	 *	{
-	 *		code: 'ValidationFailed',
-	 *		message: 'Validation Failed',
-	 *		errors: [
-	 *			{ field: 'email', code: 'required'  },
-	 *			{ field: 'passsword', code: 'invalid'  }
-	 *		]
-	 *	}
 	 **/
 	router.post('/members/avatar', async (ctx, next) => {
 
