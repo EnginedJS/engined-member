@@ -176,7 +176,7 @@ module.exports = (service) => {
 	 * @apiName UploadAvatar
 	 * @apiGroup Member
 	 *
-	 * @apiSuccess {String} token Access token
+	 * @apiSuccess {String} avatar_url Avatar picture URL
 	 *
 	 * @apiError 401 Authentication failed
 	 **/
