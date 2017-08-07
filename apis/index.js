@@ -1,4 +1,5 @@
 module.exports = {
 	General: require('./General'),
-	Member: require('./Member')
+	MemberPrivate: require('./MemberPrivate'),
+	Forgot: require('./Forgot')
 };

@@ -1,8 +1,5 @@
 const { RouterService } = require('engined-http');
-const {
-	General,
-	Member
-} = require('../apis');
+const apis = require('../apis');
 
 const applyRouter = (router, subRouter) => {
 	router.use(subRouter.routes(), subRouter.allowedMethods());
@@ -21,8 +18,9 @@ module.exports = (opts) => class extends RouterService() {
 		let router = this.createRouter();
 
 		// Apply all routers
-		applyRouter(router, General(this));
-		applyRouter(router, Member(this));
+		Object.values(apis).forEach((api) => {
+			applyRouter(router, api(this));
+		});
 
 		return router;
 	}
