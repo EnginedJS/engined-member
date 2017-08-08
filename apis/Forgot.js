@@ -109,7 +109,7 @@ module.exports = (service) => {
 	 *		]
 	 *	}
 	 **/
-	router.post('/members/reset_password', async (ctx, next) => {
+	router.post('/members/reset_password', Permission('Member.reset.password'), async (ctx, next) => {
 
 		if (ctx.state.session === undefined) {
 			ctx.throw(403);

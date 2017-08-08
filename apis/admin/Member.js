@@ -30,16 +30,31 @@ module.exports = (service) => {
 	 **/
 	router.get('/admin/member', Permission('Admin.access'), Permission('Member.list'), async (ctx, next) => {
 
-		const payload = ctx.request.query;
+		const payload = {
+			page: parseInt(ctx.request.query.page) || 1,
+			perPage: parseInt(ctx.request.query.perPage) || 50,
+			conditions: ctx.request.query.conditions || {}
+		};
 
 		try {
-			// Getting member profile
-			const members = await memberAgent
-				.getMemberManager()
+			const memberManager = memberAgent.getMemberManager();
+
+			// Count
+			const total = await memberManager.countMembers(payload.conditions);
+
+			// Getting member list
+			const members = await memberManager
 				.listMembers(payload.conditions, parseInt(payload.page), parseInt(payload.perPage));
 
 			// Response
-			ctx.body = members;
+			ctx.body = {
+				meta: {
+					total: total,
+					page: payload.page,
+					perPage: payload.perPage
+				},
+				data: members
+			};
 
 		} catch(e) {
 

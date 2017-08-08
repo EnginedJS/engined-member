@@ -162,6 +162,7 @@ module.exports = (service) => {
 			ctx.body = {
 				token: memberAgent.generateJwtToken({
 					id: memberId,
+					name: payload.name,
 					email: payload.email,
 					perms: permissions
 				})

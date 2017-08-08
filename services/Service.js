@@ -44,9 +44,22 @@ module.exports = (opts = {}) => class extends Service {
 						}
 					}
 
+					// Getting latest permissions from database
+					ctx.state.session.perms = await agent
+						.getPermissionManager()
+						.getPermissions(ctx.state.session.id);
+
 					ctx.state.session.disabled = false;
+
 					await next();
 				});
+			},
+			() => {
+
+				// Setup permission for reset password
+				this.agent
+					.getPermissionManager()
+					.registerPermission('Member', 'reset.password', 'reset password rights');
 			},
 			() => {
 
@@ -74,6 +87,11 @@ module.exports = (opts = {}) => class extends Service {
 							return;
 						}
 					}
+
+					// Getting latest permissions from database
+					ctx.state.session.perms = await agent
+						.getPermissionManager()
+						.getPermissions(ctx.state.session.id);
 
 					ctx.state.session.disabled = false;
 					await next();
@@ -121,12 +139,6 @@ module.exports = (opts = {}) => class extends Service {
 			try {
 				// Decode payload from JWT token
 				let payload = agent.decodeJwtToken(authString[1]);
-
-				// Getting latest permissions from database
-				payload.perms = await agent
-					.getPermissionManager()
-					.getPermissions(payload.id);
-
 				ctx.state.session = payload;
 			} catch(e) {
 				// failed to decode invalid token
