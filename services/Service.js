@@ -1,9 +1,7 @@
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
-const { Service } = require('engined');
+const { Service, AgentManager } = require('engined');
 const Agent = require('../lib/Agent');
-const DataModelManager = require('../lib/DataModelManager');
-const Joi = require('joi');
 const {
 	database,
 	view,
@@ -12,13 +10,15 @@ const {
 
 module.exports = (opts = {}) => {
 
-	// Initializing data model
-	const dataModelManager = new DataModelManager();
-	dataModelManager.defineDatabase(database);
-	dataModelManager.defineValidation(validation);
-	dataModelManager.defineView(view);
+	const PrototypeService = Service.create({
+		DataModel: {
+			Database: database,
+			View: view,
+			Validation: validation
+		}
+	});
 
-	class Member extends Service {
+	class Member extends PrototypeService {
 
 		constructor(context) {
 			super(context);
@@ -31,163 +31,40 @@ module.exports = (opts = {}) => {
 			this.agent = null;
 			this.opts = opts;
 			this.agentName = opts.agentName || 'default';
-			this.httpAgent = opts.httpAgent || 'default';
-			this.dbAgent = opts.dbAgent || 'default';
-			this.storageAgent = opts.storageAgent || 'default';
-			
-			this.dataModel = dataModelManager;
-		}
-
-		async registerPermissions() {
-
-			const permissions = [
-				() => {
-					// Setup permission for member who logined already
-					let handler = this.agent
-						.getPermissionManager()
-						.registerPermission('Member', 'access', 'Standard member access rights');
-
-					handler.check(async (ctx, next) => {
-
-						// Check whether user is disabled or not
-						if (await this.agent.getMemberManager().isDisabled(ctx.state.session.id)) {
-
-							if (ctx.state.routeType === 'API') {
-								ctx.throw(403);
-							} else {
-								// TODO: redirect to page for disabled account
-								return;
-							}
-						}
-
-						// Getting latest permissions from database
-						ctx.state.session.perms = await agent
-							.getPermissionManager()
-							.getPermissions(ctx.state.session.id);
-
-						ctx.state.session.disabled = false;
-
-						await next();
-					});
-				},
-				() => {
-
-					// Setup permission for reset password
-					this.agent
-						.getPermissionManager()
-						.registerPermission('Member', 'reset.password', 'reset password rights');
-				},
-				() => {
-
-					// Setup permission for managing members
-					this.agent
-						.getPermissionManager()
-						.registerPermission('Member', 'list', 'list members rights');
-				},
-				() => {
-
-					// Setup permission for administrator
-					let adminHandler = this.agent
-						.getPermissionManager()
-						.registerPermission('Admin', 'access', 'Standard administrator access rights');
-
-					adminHandler.check(async (ctx, next) => {
-
-						// Check whether user is disabled or not
-						if (await this.agent.getMemberManager().isDisabled(ctx.state.session.id)) {
-
-							if (ctx.state.routeType === 'API') {
-								ctx.throw(403);
-							} else {
-								// TODO: redirect to page for disabled account
-								return;
-							}
-						}
-
-						// Getting latest permissions from database
-						ctx.state.session.perms = await agent
-							.getPermissionManager()
-							.getPermissions(ctx.state.session.id);
-
-						ctx.state.session.disabled = false;
-						await next();
-					});
-				}
-			];
-
-			permissions.map((register) => {
-				return register();
-			});
 		}
 
 		async start() {
 
-			let context = this.getContext().get('Member');
-			if (!context) {
-				context = {};
-				this.getContext().set('Member', context);
-			}
-
-			let httpAgent = this.getContext().get('HTTP')[this.httpAgent];
-
-			// Setup Session middleware
-			httpAgent.use(async (ctx, next) => {
-
-				if (ctx.state === undefined)
-					ctx.state = {};
-
-				// not yet authorized
-				if (!ctx.headers.authorization) {
-					await next();
-					return;
-				}
-
-				// Getting member agent
-				let agent = this.getContext().get('Member')[this.agentName];
-
-				// Getting JWT token
-				let authString = ctx.headers.authorization.split(' ');
-				if (authString[0] !== 'JWT') {
-					await next();
-					return;
-				}
-
-				try {
-					// Decode payload from JWT token
-					let payload = agent.decodeJwtToken(authString[1]);
-					ctx.state.session = payload;
-				} catch(e) {
-					// failed to decode invalid token
-				}
-
-				await next();
-			});
-
 			// Add agent
-			this.agent = context[this.agentName] = new Agent(this);
+			this.agent = new Agent(this);
 
-			// Register all permissions
-			this.registerPermissions();
+			await this.agent.initialize();
+
+			// Register on context object
+			this.getContext()
+				.assert('Member')
+				.register(this.agentName, this.agent);
 		}
 
 		async stop() {
 
+			if (this.agent === null)
+				return;
+
 			this.agent = null;
 
-			let context = this.getContext().get('Member');
-			if (!context) {
+			// Getting agent member
+			let agentManager = this.getContext().get('Member');
+			if (!agentManager)
 				return;
-			}
 
 			// Take off agent from context
-			delete context[this.agentName];
+			agentManager.unregister(this.agentName);
 
-			if (Object.keys(context).length === 0)
-				this.getContext().set('Member', undefined);
+			if (agentManager.count() === 0)
+				this.getContext().remove('Member');
 		}
 	}
-
-	Member.DataModel = dataModelManager;
 
 	return Member;
 };

@@ -26,7 +26,7 @@
   "homepage": "https://github.com/EnginedJS/engined-member#readme",
   "dependencies": {
     "async-busboy": "^0.6.1",
-    "engined": "0.0.2",
+    "engined": ">=0.0.3",
     "engined-http": "0.0.4",
     "joi": "^10.6.0",
     "jsonwebtoken": "^7.4.1",

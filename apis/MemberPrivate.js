@@ -4,7 +4,7 @@ const busboy = require('async-busboy');
 module.exports = (service) => {
 
 	// Getting member system agent
-	const memberAgent = service.getContext().get('Member')[service.memberAgent];
+	const memberAgent = service.getContext().get('Member').getAgent(service.memberAgent);
 	const Permission = memberAgent.getPermissionMiddleware();
 
 	// Create a new router
