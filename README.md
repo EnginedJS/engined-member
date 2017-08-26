@@ -1,6 +1,6 @@
 # engined-member
 
-Member system service for engined.
+Member system service for engined, which contains member management, permission mechanism, Restful APIs and HTTP middlewares.
 
 ## License
 Licensed under the MIT License
