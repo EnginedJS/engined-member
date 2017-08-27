@@ -25,7 +25,6 @@ module.exports = (opts = {}) => {
 
 			this.dependencies = [
 				'Storage',
-				'HTTP',
 				'MySQL'
 			];
 			this.agent = null;
