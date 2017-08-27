@@ -16,7 +16,7 @@ npm install engined-member --save
 * engined-storage
 * engined-http
 * engined-mailer
-* engined-mysql`
+* engined-mysql
 
 ## License
 Licensed under the MIT License
