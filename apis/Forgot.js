@@ -21,16 +21,7 @@ module.exports = (service) => {
 	 *
 	 * @apiError 403 Account is disabled
 	 * @apiError 404 Account doesn't exist
-	 * @apiError 422 Parameters are invalid
-	 * @apiErrorExample {json} Error-Response:
-	 *	HTTP/1.1 422 Validation Failed
-	 *	{
-	 *		code: 'ValidationFailed',
-	 *		message: 'Validation Failed',
-	 *		errors: [
-	 *			{ field: 'email', code: 'required'  },
-	 *		]
-	 *	}
+	 * @apiError 400 Email is incorrect
 	 **/
 	router.post('/members/forgot', async (ctx, next) => {
 
@@ -89,27 +80,18 @@ module.exports = (service) => {
 	});
 
 	/**
-	 * @api {post} /api/v1/members/reset_password Reset password
+	 * @api {put} /api/v1/members/reset_password Reset password
 	 * @apiName ResetPassword
 	 * @apiGroup Member
 	 *
 	 * @apiHeader {String} authorization user's token
 	 * @apiParam {String} password New password
 	 *
+	 * @apiError 401 Parameters are invalid
 	 * @apiError 403 Account is disabled
 	 * @apiError 404 Account doesn't exist
-	 * @apiError 422 Parameters are invalid
-	 * @apiErrorExample {json} Error-Response:
-	 *	HTTP/1.1 422 Validation Failed
-	 *	{
-	 *		code: 'ValidationFailed',
-	 *		message: 'Validation Failed',
-	 *		errors: [
-	 *			{ field: 'password', code: 'required'  },
-	 *		]
-	 *	}
 	 **/
-	router.post('/members/reset_password', Permission('Member.reset.password'), async (ctx, next) => {
+	router.put('/members/reset_password', Permission('Member.reset.password'), async (ctx, next) => {
 
 		if (ctx.state.session === undefined) {
 			ctx.throw(403);
@@ -133,24 +115,9 @@ module.exports = (service) => {
 
 			switch(e.name) {
 			case 'ValidationFailed':
-				ctx.throw(422, {
-					code: 'ValidationFailed',
-					message: 'Validation failed',
-					errors: e.errors.map((error) => {
-						switch(error.type) {
-						case 'any.required':
-							return {
-								field: error.field,
-								code: 'required'
-							};
-
-						default:
-							return {
-								field: error.field,
-								code: 'invalid'
-							};
-						}
-					})
+				ctx.throw(400, {
+					code: 'InvalidParameters',
+					message: 'Invalid parameters'
 				});
 
 			case 'Disabled':

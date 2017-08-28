@@ -119,7 +119,7 @@ module.exports = (service) => {
 	 * @apiParam {String} old Old password
 	 * @apiParam {String} new New password
 	 *
-	 * @apiError 401 Old password is incorrect
+	 * @apiError 400 Old password is incorrect
 	 * @apiError 403 Account is disabled
 	 * @apiError 404 Account doesn't exist
 	 **/
@@ -149,7 +149,7 @@ module.exports = (service) => {
 
 			switch(e.name) {
 			case 'IncorrectOldPassword':
-				ctx.throw(401, {
+				ctx.throw(400, {
 					code: 'IncorrectOldPassword',
 					message: 'Incorrect Old Password'
 				});
@@ -180,8 +180,9 @@ module.exports = (service) => {
 	 *
 	 * @apiError 401 Authentication failed
 	 **/
-	router.post('/members/avatar', async (ctx, next) => {
+	router.post('/members/avatar', Permission('Member.access'), async (ctx, next) => {
 
+		// TODO: need to set timer to avoid it hangs for a long time
 		try {
 			let avatarUrl = await new Promise(async (resolve, reject) => {
 

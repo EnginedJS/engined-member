@@ -22,19 +22,9 @@ module.exports = (service) => {
 	 *
 	 * @apiSuccess {String} token Access token
 	 *
+	 * @apiError 400 Invalid parameters
 	 * @apiError 401 Authentication failed
 	 * @apiError 403 Account is disabled
-	 * @apiError 422 Parameters are invalid
-	 * @apiErrorExample {json} Error-Response:
-	 *	HTTP/1.1 422 Validation Failed
-	 *	{
-	 *		code: 'ValidationFailed',
-	 *		message: 'Validation Failed',
-	 *		errors: [
-	 *			{ field: 'email', code: 'required'  },
-	 *			{ field: 'passsword', code: 'invalid'  }
-	 *		]
-	 *	}
 	 **/
 	router.post('/members/authenticate', async (ctx, next) => {
 
@@ -67,24 +57,9 @@ module.exports = (service) => {
 
 			switch(e.name) {
 			case 'ValidationFailed':
-				ctx.throw(422, {
-					code: 'ValidationFailed',
-					message: 'Validation failed',
-					errors: e.errors.map((error) => {
-						switch(error.type) {
-						case 'any.required':
-							return {
-								field: error.field,
-								code: 'required'
-							};
-
-						default:
-							return {
-								field: error.field,
-								code: 'invalid'
-							};
-						}
-					})
+				ctx.throw(400, {
+					code: 'InvalidParameters',
+					message: 'Invalid parameters'
 				});
 
 			case 'Disabled':
