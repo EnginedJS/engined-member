@@ -15,7 +15,7 @@ module.exports = (service) => {
 	router.use(service.routeType('API'));
 
 	/**
-	 * @api {get} /api/v1/admin/member List members
+	 * @api {get} /api/v1/admin/members List members
 	 * @apiName ListMembers
 	 * @apiGroup Admin
 	 *
@@ -28,7 +28,7 @@ module.exports = (service) => {
 	 *
 	 * @apiError 404 NotFound Account doesn't exist
 	 **/
-	router.get('/admin/member', Permission('Admin.access'), Permission('Member.list'), async (ctx, next) => {
+	router.get('/admin/members', Permission('Admin.access'), Permission('Member.list'), async (ctx, next) => {
 
 		const payload = {
 			page: parseInt(ctx.request.query.page) || 1,
