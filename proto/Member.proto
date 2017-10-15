@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+service Member {
+	rpc Authenticate(AuthenticateRequest) returns (AuthenticateResponse);
+	rpc Create(CreateRequest) returns (CreateResponse);
+}
+
+message AuthenticateRequest {
+	string email = 1;
+	string password = 2;
+}
+
+message AuthenticateResponse {
+	string token = 1;
+	string name = 2;
+	string email = 3;
+}
+
+message CreateRequest {
+	string name = 1;
+	string email = 2;
+	string password = 3;
+}
+
+message CreateResponse {
+	string token = 1;
+	string name = 2;
+	string email = 3;
+}

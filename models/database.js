@@ -9,7 +9,7 @@ module.exports = {
 			password: Joi.string().required(),
 			salt: Joi.string().required(),
 			phone: Joi.string().max(64),
-			avatar_url: Joi.string().max(255),
+			avatar_url: Joi.string().max(512),
 			country: Joi.string().max(255),
 			address: Joi.string().max(255),
 			city: Joi.string().max(255),
